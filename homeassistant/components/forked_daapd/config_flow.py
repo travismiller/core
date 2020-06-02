@@ -111,6 +111,13 @@ class ForkedDaapdFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Return options flow handler."""
         return ForkedDaapdOptionsFlowHandler(config_entry)
 
+    def valid_forked_daapd_device(self, discovery_info):
+        properties = discovery_info.get("properties", {})
+        major_version = properties.get('mtd-version', '0').split('.')[0]
+        machine_name = properties.get('Machine Name', '')
+
+        return major_version.isdigit() and int(major_version) > 27 and machine_name
+
     async def validate_input(self, user_input):
         """Validate the user input."""
         websession = async_get_clientsession(self.hass)
@@ -156,12 +163,7 @@ class ForkedDaapdFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info):
         """Prepare configuration for a discovered forked-daapd device."""
-        if not (
-            discovery_info.get("properties")
-            and int(discovery_info["properties"].get("mtd-version", "0").split(".")[0])
-            >= 27
-            and discovery_info["properties"].get("Machine Name")
-        ):
+        if not self.valid_forked_daapd_device(discovery_info)
             return self.async_abort(reason="not_forked_daapd")
 
         await self.async_set_unique_id(discovery_info["properties"]["Machine Name"])
